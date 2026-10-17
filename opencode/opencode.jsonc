@@ -1,0 +1,46 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "mcp": {
+    "servers": {
+      // Chrome for the qa agent: its own throwaway profile (--isolated), so it is signed in to nothing.
+      // Page URLs are not sent to Google (no usage statistics, no CrUX lookups) and auth headers are
+      // redacted before network details reach the model. Screenshots are downscaled webp to save context.
+      // Remove --headless to watch the browser while QA works.
+      // Pinned: bump deliberately, after reading the release notes.
+      "chrome-devtools": {
+        "type": "local",
+        "command": [
+          "npx", "-y", "chrome-devtools-mcp@1.10.1",
+          "--isolated",
+          "--headless",
+          "--viewport=1440x900",
+          "--no-usage-statistics",
+          "--no-performance-crux",
+          "--redact-network-headers",
+          "--screenshot-format=webp",
+          "--screenshot-max-width=1600"
+        ],
+        // Native tools instead of Code Mode, so screenshots reach the model as images.
+        // The permission rule below hides these tools from every agent except qa.
+        "codemode": false,
+        "timeout": { "startup": 60000 }
+      },
+
+      // Current documentation for libraries and frameworks. Works without a key at a lower rate limit;
+      // to use a key, add "headers": { "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}" } and export it.
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp",
+        "oauth": false
+      }
+    }
+  },
+
+  "permissions": [
+    // The browser belongs to the qa agent (agents/qa.md allows it again). Other agents don't see
+    // its ~30 tools, which keeps their context small. To give build the browser as well, add an
+    // allow rule for "chrome-devtools_*" under agents.build.permissions.
+    { "action": "chrome-devtools_*", "resource": "*", "effect": "deny" }
+  ]
+}
