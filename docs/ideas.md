@@ -42,6 +42,6 @@ Let `qa` write its reports to `.qa/`, allowing edits there and nowhere else. A l
 
 Run `opencode run --agent qa --format json` on every pull request in CI and post the report as a PR comment. A person still merges.
 
-## 9. Layering with a company harness
+## 9. Version the private layer
 
-This repo is the generic, global layer. A company or project harness goes in a `.opencode/` folder at the workspace or repository level, and opencode applies it after the global config, so its rules refine these. Keep company rules out of this public repo.
+`private/` is ignored by this repo's git, so today nothing versions it. It can become a git repository of its own, inside the same folder, pushed to a private remote. The outer repo keeps ignoring it, so the folder layout stays the same and the rules get history, review and a backup. `scripts/check.py` would then also check that the private repository has a remote and no unpushed work.

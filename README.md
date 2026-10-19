@@ -1,6 +1,11 @@
-# OpenCode Setup
+# halfling-harness
 
-A harness for [opencode](https://opencode.ai) v2: MCP servers, an outside-in QA agent, skills and slash commands. Install it once and every project gets it. A project's own `.opencode/` folder is applied after it, so project rules still win where they disagree.
+A harness for [opencode](https://opencode.ai) v2: MCP servers, an outside-in QA agent, skills and slash commands. It has two layers:
+
+- **The global layer, `opencode/`.** It is public, applies to every project, and is what this repo is about.
+- **The private layer, `private/`.** It holds your own rules and config for one workspace folder, for example the repositories of one company. Git ignores it, so it is never pushed.
+
+A project's own `.opencode/` folder is applied after both layers, so project rules still win where they disagree.
 
 It uses only v2 configuration: `mcp.servers`, ordered `permissions` lists, and the `agents/`, `commands/` and `skills/` folders. It was built and tested on opencode 2.0.25 on macOS. The v2 documentation is at [opencode.ai/v2/docs](https://opencode.ai/v2/docs/).
 
@@ -13,16 +18,37 @@ You need:
 - Python 3, for the check script.
 
 ```bash
-git clone https://github.com/AsphaltHedgehog/OpenCode-Setup.git
-cd OpenCode-Setup
+git clone https://github.com/AsphaltHedgehog/halfling-harness.git
+cd halfling-harness
 ./install.sh --dry-run      # show what would be linked
-./install.sh                # link it into ~/.config/opencode
+./install.sh                # link the global layer into ~/.config/opencode
 python3 scripts/check.py    # ask opencode what it loaded
 ```
 
 `install.sh` only creates symlinks, and it never replaces a file that isn't one of its own links. Your own `~/.config/opencode/opencode.json` stays in place, because opencode reads both `opencode.json` and `opencode.jsonc` from the same folder and merges them. To remove everything again, run `./install.sh --uninstall`.
 
-To use the setup in one project instead of globally, link the folder: `ln -s /path/to/OpenCode-Setup/opencode <project>/.opencode`. This only works if the project has no `.opencode` folder of its own.
+### The private layer
+
+Put your own rules in `private/`, using the layout of an opencode config folder:
+- `private/AGENTS.md` holds the instructions;
+- `private/opencode/` holds `opencode.json`, plus `agents/`, `commands/` and `skills/` if you need them.
+
+Then link the layer into the folder that holds the repositories it is for:
+
+```bash
+./install.sh --private-to ~/work/acme    # links ~/work/acme/.opencode and ~/work/acme/AGENTS.md
+```
+
+opencode reads `.opencode/` and `AGENTS.md` from every folder above the one it starts in, so every project under that folder gets the private layer on top of the global one. The TUI, the desktop app and IDEs all pick it up. `install.sh` remembers the folder in `private/.workspace`, so a plain `./install.sh` re-links both layers afterwards. `scripts/check.py` fails if anything in `private/` is ever tracked by git.
+
+### Open opencode
+
+```bash
+launch/oc.command                  # opencode here; outside the private workspace, pick a project from it
+launch/oc.command <folder> [args]  # opencode in <folder>; further arguments go to opencode
+```
+
+The launcher names no projects. It finds every git repository or worktree directly in the private workspace and offers them as choices, which is also what happens when you double-click it in Finder. If the links are missing, it runs `install.sh` first.
 
 ## What's inside
 
@@ -32,7 +58,9 @@ To use the setup in one project instead of globally, link the folder: `ln -s /pa
 | `opencode/agents/qa.md` | The QA agent |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
-| `install.sh` | Links the files above into `~/.config/opencode` |
+| `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
+| `install.sh` | Links the global layer into `~/.config/opencode` and `private/` into its workspace |
+| `launch/oc.command` | Opens opencode in a project with the harness |
 | `scripts/check.py` | Checks the setup with opencode's own loader |
 | `docs/ideas.md` | Where the harness can go next |
 
@@ -113,7 +141,7 @@ QA uses the model of the session it runs in. You can pin a different one by addi
 
 Afterwards it disconnects the servers it started. Run it after every change, and after upgrading opencode.
 
-The check project is `~/.cache/opencode-setup/check/<hash of opencode/>`, so every version of the files gets a fresh folder. These folders are kept on purpose: deleting a folder opencode has loaded breaks `opencode reload` (see below). Each one holds only a symlink.
+Each check project is `~/.cache/halfling-harness/check/<layer>-<hash of its files>`, so every version of the files gets a fresh folder. When `private/` exists, the script also checks that git ignores it and tracks none of its files, that the workspace links point at it, and that its config loads. These folders are kept on purpose: deleting a folder opencode has loaded breaks `opencode reload` (see below). Each one holds only a symlink.
 
 ## v2 gotchas found while building this
 
