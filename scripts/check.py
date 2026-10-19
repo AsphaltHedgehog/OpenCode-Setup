@@ -5,7 +5,10 @@ opencode/ is linked into a check project, and opencode is asked what it loaded: 
 commands, skills and MCP connections. The script also flags what the loader would accept
 silently but shouldn't, such as an unpinned MCP package or v1 fields in an agent's frontmatter.
 
-The check project is ~/.cache/opencode-setup/check/<hash of opencode/>. The background service
+When there is a private/ layer, it is checked too: it must never be tracked by git, its config
+must load, its workspace links must point at it, and its agents must use only v2 fields.
+
+Each check project is ~/.cache/halfling-harness/check/<layer>-<hash of its files>. The background service
 keeps a folder's definitions from the first time it loads that folder and misses later edits made
 through the symlink, so every version of the files gets a folder of its own. The folders are
 never deleted: once the service knows a folder, deleting it makes `opencode reload` fail.
@@ -27,6 +30,7 @@ import urllib.parse
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 CFG = REPO / "opencode"
+PRIVATE = REPO / "private"
 # The frontmatter keys of a v2 agent. Any other key makes opencode parse the file as a v1 agent.
 V2_AGENT_KEYS = {"description", "mode", "model", "variant", "steps", "hidden", "color", "disabled", "permissions", "request"}
 
@@ -120,28 +124,35 @@ def effect(rules, action, resource):
     return result
 
 
-def check_project():
-    """The check folder for the current contents of opencode/, created on first use."""
+def check_project(layer, links):
+    """The check folder for the current contents of one layer, created on first use.
+    links maps a name in the folder (".opencode", "AGENTS.md") to the file or folder it links to."""
     digest = hashlib.sha256()
-    for path in sorted(p for p in CFG.rglob("*") if p.is_file()):
-        digest.update(str(path.relative_to(CFG)).encode() + b"\0" + path.read_bytes() + b"\0")
+    for source in links.values():
+        files = sorted(p for p in source.rglob("*") if p.is_file()) if source.is_dir() else [source]
+        for path in files:
+            digest.update(str(path.relative_to(REPO)).encode() + b"\0" + path.read_bytes() + b"\0")
     cache = pathlib.Path(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache")
-    project = (cache / "opencode-setup" / "check" / digest.hexdigest()[:16]).resolve()
+    project = (cache / "halfling-harness" / "check" / f"{layer}-{digest.hexdigest()[:16]}").resolve()
     project.mkdir(parents=True, exist_ok=True)
-    link = project / ".opencode"
-    if not (link.is_symlink() and link.resolve() == CFG.resolve()):
-        if link.is_symlink():
-            link.unlink()  # a clone that moved since this folder was made
-        link.symlink_to(CFG)
+    for name, source in links.items():
+        link = project / name
+        if not (link.is_symlink() and link.resolve() == source.resolve()):
+            if link.is_symlink():
+                link.unlink()  # a clone that moved since this folder was made
+            link.symlink_to(source)
     return project
 
 
 def main():
-    project = check_project()
+    project = check_project("global", {".opencode": CFG})
     try:
         run_checks(project)
     finally:
         disconnect_all(project)
+
+    if PRIVATE.is_dir():
+        run_private_checks()
 
     print()
     if problems:
@@ -224,6 +235,44 @@ def run_checks(project):
         state = status.get(name, {"status": "missing"})
         want = "disabled" if server.get("disabled") else "connected"
         check(state.get("status") == want, f"mcp {name} is {want}" + ("" if state.get("status") == want else f" (got {json.dumps(state)})"))
+
+
+def run_private_checks():
+    tracked = subprocess.run(["git", "-C", str(REPO), "ls-files", "private"], capture_output=True, text=True).stdout.split()
+    check(not tracked, "private/ has no files tracked by git" + (f" (tracked: {tracked})" if tracked else ""))
+    ignored = subprocess.run(["git", "-C", str(REPO), "check-ignore", "-q", "private/AGENTS.md"]).returncode == 0
+    check(ignored, "git ignores private/")
+
+    workspace_file = PRIVATE / ".workspace"
+    if workspace_file.exists():
+        workspace = pathlib.Path(workspace_file.read_text().strip())
+        for name, source in ((".opencode", PRIVATE / "opencode"), ("AGENTS.md", PRIVATE / "AGENTS.md")):
+            if source.exists():
+                link = workspace / name
+                check(link.is_symlink() and link.resolve() == source.resolve(), f"private: {link} links to {source.relative_to(REPO)}")
+
+    if not (PRIVATE / "opencode").is_dir():
+        return
+    links = {".opencode": PRIVATE / "opencode"}
+    if (PRIVATE / "AGENTS.md").exists():
+        links["AGENTS.md"] = PRIVATE / "AGENTS.md"
+    project = check_project("private", links)
+    try:
+        config_files = [p for p in (PRIVATE / "opencode").glob("opencode.json*") if p.is_file()]
+        rules = [r for f in config_files for r in jsonc(f.read_text()).get("permissions", [])]
+        agent_files = sorted((PRIVATE / "opencode" / "agents").glob("*.md"))
+        expected_agents = {f.stem for f in agent_files} | {"build"}
+        found = poll(lambda: oc(project, "debug", "agents"), lambda a: expected_agents <= {x["id"] for x in a})
+        agents = {a["id"]: a for a in found}
+        build = agents.get("build", {}).get("permissions", [])
+        missing = [r for r in rules if r not in build]
+        check(not missing, f"private: all {len(rules)} permission rules reach the agents" + (f" (missing {missing[:3]})" if missing else ""))
+        for f in agent_files:
+            extra = sorted(frontmatter_keys(f) - V2_AGENT_KEYS)
+            check(not extra, f"private: agents/{f.name} uses only v2 frontmatter" + (f" (found {extra})" if extra else ""))
+            check(f.stem in agents, f"private: agent {f.stem} is loaded")
+    finally:
+        disconnect_all(project)
 
 
 if __name__ == "__main__":
