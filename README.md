@@ -58,9 +58,11 @@ The launcher names no projects. It finds every git repository or worktree direct
 | `opencode/agents/qa.md` | The QA agent |
 | `opencode/agents/dev.md` | The developer agent |
 | `opencode/agents/eval.md` | The evaluation agent for the end of a sprint |
+| `opencode/agents/deps.md` | The dependency scout |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
 | `opencode/commands/dev.md` | The `/dev` command |
 | `opencode/commands/eval.md` | The `/eval` command |
+| `opencode/commands/deps.md` | The `/deps` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
 | `opencode/skills/eval-*/SKILL.md` | The evaluation agent's architecture and comments checklists |
 | `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
@@ -168,6 +170,17 @@ Eval closes a sprint or a feature set. It finds what the sprint left behind, the
 - **The record:** it writes `docs/evaluations/<date>.md` as it goes, and that is the only file it may change. The record ends with a ready-to-run `/dev` task for the fix-now items, and the agent leaves it uncommitted for you to review.
 
 Run it with `/eval` as the main agent of a session, because a subagent can't hold an interview. In a non-interactive run it writes its proposed decisions and stops. It doesn't judge how up to date your dependencies are; it only notes the ones the sprint added.
+
+## The deps agent
+
+Deps finds which dependencies should move, how risky each move is, and what in your code each move would touch. It changes nothing. Its upgrade batches are written as `/dev` tasks.
+- **Inventory:** package manifests and lockfiles, toolchain pins, Docker base images, GitHub Actions versions and pinned `npx` packages.
+- **Outdated and vulnerable:** each ecosystem's own read-only commands (`npm outdated`, `npm audit`, `pip3 index versions`, `go list -m -u`, `cargo audit`, `osv-scanner` and so on), when they are installed. It never installs a tool; a missing one goes under "Not checked".
+- **Cooldown:** a release younger than 14 days is held back unless it fixes a vulnerability that affects you. Fresh releases are where supply-chain attacks and quick reverts land. A project can set a different cooldown in its AGENTS.md.
+- **Risk:** for every major update and every security fix, it reads the changelog and finds the call sites in your code that the breaking changes touch.
+- **Batches:** security now, a safe patch-and-minor batch, one batch per major, and a hold list, each with a ready-made `/dev` task.
+
+Run `/deps` (or `/deps npm`, `/deps app/`) as a background subagent. It runs on its own schedule, for example weekly or before a release, so it is separate from the end-of-sprint evaluation.
 
 ## Check it
 
