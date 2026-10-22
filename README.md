@@ -59,12 +59,15 @@ The launcher names no projects. It finds every git repository or worktree direct
 | `opencode/agents/dev.md` | The developer agent |
 | `opencode/agents/eval.md` | The evaluation agent for the end of a sprint |
 | `opencode/agents/deps.md` | The dependency scout |
+| `opencode/agents/design.md` | The software designer and keeper of the specs |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
 | `opencode/commands/dev.md` | The `/dev` command |
 | `opencode/commands/eval.md` | The `/eval` command |
 | `opencode/commands/deps.md` | The `/deps` command |
+| `opencode/commands/design.md` | The `/design` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
 | `opencode/skills/eval-*/SKILL.md` | The evaluation agent's architecture and comments checklists |
+| `opencode/skills/specs/` | The spec item format, and the trace script that links specs to code by ID |
 | `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
 | `install.sh` | Links the global layer into `~/.config/opencode` and `private/` into its workspace |
 | `launch/oc.command` | Opens opencode in a project with the harness |
@@ -157,6 +160,32 @@ Run it with `/dev <task>`, or press Tab to switch to `dev`. The prompt is the so
 - **Subagents:** `qa`, `explore` and `general`.
 
 As with QA, a project can allow its own commands for `dev` under `agents.dev.permissions` in its config.
+
+## The design agent and spec items
+
+Design turns a task into a **spec item** before code is written, and keeps every item true to the code afterwards.
+
+Every implemented task is saved in the repository as one markdown file. The file is named `docs/specs/<task-slug>-<ID>.md`, and its first line is `# <ID> <title>`, for example `# SPEC-12 Orders: limit parameter`. Each item has a state (`draft`, `approved`, `implemented`, `deprecated`), numbered acceptance criteria (`AC-1`, `AC-2`) and its decisions. It is found **by ID, never by path**, in the spirit of Google's AIPs. IDs are never reused.
+- **design** writes the item and asks you each open decision one question at a time, with its recommended answer. It updates the API contract first, writes an ADR for each structural choice, and hands dev a plan in small steps. It may write only specs, ADRs and contract files.
+- **dev** reads the item by ID, tags the code with `spec: SPEC-12` and each test with `spec: SPEC-12/AC-2`, and marks the item implemented. If a task had no item, dev writes one, so every implemented task is saved.
+- **qa** takes its requirements from the item's acceptance criteria.
+- **eval** treats what the trace reports as findings, and never counts `spec:` tags as wordy comments.
+
+The trace is a script that ships inside the `specs` skill:
+
+```bash
+python3 opencode/skills/specs/scripts/spec_trace.py <repo> [--strict] [--json]
+```
+
+It reports:
+- broken or duplicate IDs;
+- approved items no code implements, and implemented criteria no test proves;
+- tags pointing at unknown or deprecated items;
+- items changed after their code.
+
+`--strict` makes it usable in CI. `scripts/check.py` runs its tests.
+
+Run design with `/design <task>`. When it runs as a subagent it can't ask you anything, so it returns its open questions with recommendations and keeps the item as a draft.
 
 ## The eval agent
 
