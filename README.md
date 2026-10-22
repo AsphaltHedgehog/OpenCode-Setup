@@ -56,7 +56,9 @@ The launcher names no projects. It finds every git repository or worktree direct
 |---|---|
 | `opencode/opencode.jsonc` | The MCP servers, plus the one global permission rule |
 | `opencode/agents/qa.md` | The QA agent |
+| `opencode/agents/dev.md` | The developer agent |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
+| `opencode/commands/dev.md` | The `/dev` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
 | `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
 | `install.sh` | Links the global layer into `~/.config/opencode` and `private/` into its workspace |
@@ -130,6 +132,26 @@ Agent rules are applied after every config file's top-level rules. As a result, 
 ### Model
 
 QA uses the model of the session it runs in. You can pin a different one by adding `model: provider/model` to the frontmatter of `agents/qa.md`. A model family other than the one that wrote the code tends to catch different mistakes.
+
+## The dev agent
+
+Dev turns a task into a small, tested, reviewed change.
+- **Contract first:** it collects the same written sources QA uses before it edits anything. For anything bigger than a small fix, it runs `qa` in ready mode first.
+- **Decisions are yours:** it looks facts up itself and asks you only for decisions, one question at a time, each with its recommended answer.
+- **Test first:** a bug becomes a failing test before it gets a fix, with expected values from the spec rather than from the code.
+- **Reviewed before commit:** it reads its own diff against the `qa-naming-and-values` checklist, then has the `qa` agent review the change and fixes what QA confirms.
+- **Small commits:** it commits on a topic branch in logical commits, using the project's message style.
+
+Run it with `/dev <task>`, or press Tab to switch to `dev`. The prompt is the source of truth: [`opencode/agents/dev.md`](opencode/agents/dev.md).
+
+### What it may do
+
+- **Without asking:** edit files, inspect git, create a topic branch, stage and commit, and run tests, linters, formatters, type checks and builds.
+- **Asks first:** pushing, installing packages, `npm run` scripts other than test, lint, typecheck, build and format, and any other shell command.
+- **Never:** force-push, push to `main` or `master`, `git reset --hard`, `git clean`, discard changes with `git checkout --`, merge a PR, publish a release or run a workflow.
+- **Subagents:** `qa`, `explore` and `general`.
+
+As with QA, a project can allow its own commands for `dev` under `agents.dev.permissions` in its config.
 
 ## Check it
 
