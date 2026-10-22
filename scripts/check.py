@@ -210,6 +210,17 @@ def run_checks(project):
         ("dev", "subagent", "qa", "allow"),
         ("dev", "subagent", "dev", "deny"),
         ("dev", "chrome-devtools_take_screenshot", "*", "deny"),
+        ("eval", "edit", "docs/evaluations/2026-10-22.md", "allow"),
+        ("eval", "edit", "src/app.py", "deny"),
+        ("eval", "edit", "docs/README.md", "deny"),
+        ("eval", "question", "*", "allow"),
+        ("eval", "subagent", "explore", "allow"),
+        ("eval", "subagent", "general", "deny"),
+        ("eval", "shell", "git log --oneline v1.4.0..HEAD", "allow"),
+        ("eval", "shell", "gh pr list --state merged --limit 50", "allow"),
+        ("eval", "shell", "git commit -m 'docs: evaluation'", "deny"),
+        ("eval", "shell", "git tag -a sprint-12", "deny"),
+        ("eval", "shell", "npm install left-pad", "ask"),
     ]:
         got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
