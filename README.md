@@ -57,9 +57,12 @@ The launcher names no projects. It finds every git repository or worktree direct
 | `opencode/opencode.jsonc` | The MCP servers, plus the one global permission rule |
 | `opencode/agents/qa.md` | The QA agent |
 | `opencode/agents/dev.md` | The developer agent |
+| `opencode/agents/eval.md` | The evaluation agent for the end of a sprint |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
 | `opencode/commands/dev.md` | The `/dev` command |
+| `opencode/commands/eval.md` | The `/eval` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
+| `opencode/skills/eval-*/SKILL.md` | The evaluation agent's architecture and comments checklists |
 | `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
 | `install.sh` | Links the global layer into `~/.config/opencode` and `private/` into its workspace |
 | `launch/oc.command` | Opens opencode in a project with the harness |
@@ -152,6 +155,19 @@ Run it with `/dev <task>`, or press Tab to switch to `dev`. The prompt is the so
 - **Subagents:** `qa`, `explore` and `general`.
 
 As with QA, a project can allow its own commands for `dev` under `agents.dev.permissions` in its config.
+
+## The eval agent
+
+Eval closes a sprint or a feature set. It finds what the sprint left behind, then grills you about it, in the spirit of Matt Pocock's [grilling skill](https://github.com/mattpocock/skills).
+- **Range:** everything since the last evaluation, using the commit recorded in `docs/evaluations/`. The first time, it starts from the newest tag. You can also give it a range: `/eval v1.4.0..HEAD`.
+- **What it looks for:**
+  - **unresolved work:** TODO markers, skipped tests, leftover debug code, unanswered review threads, issues still open, and docs that didn't follow a change;
+  - **architecture:** dependency direction and cycles, one rule implemented twice, growth hot spots, abstractions with one user, leaky boundaries, failures that disappear, and drift from the README, ADRs or AGENTS.md;
+  - **comments:** comments that restate the code, narrate history, talk to the reader or contradict the code, judged against the project's own comment density.
+- **Grilling:** it asks you one question at a time, each with its recommended answer: fix now, ticket, accept with a reason, or write an ADR. It looks facts up itself and asks you only for decisions.
+- **The record:** it writes `docs/evaluations/<date>.md` as it goes, and that is the only file it may change. The record ends with a ready-to-run `/dev` task for the fix-now items, and the agent leaves it uncommitted for you to review.
+
+Run it with `/eval` as the main agent of a session, because a subagent can't hold an interview. In a non-interactive run it writes its proposed decisions and stops. It doesn't judge how up to date your dependencies are; it only notes the ones the sprint added.
 
 ## Check it
 
