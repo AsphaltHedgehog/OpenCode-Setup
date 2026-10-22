@@ -77,6 +77,7 @@ permissions:
   - { action: shell, resource: "./gradlew test *", effect: allow }
   - { action: shell, resource: "make test *", effect: allow }
   - { action: shell, resource: "make lint *", effect: allow }
+  - { action: shell, resource: "python3 *spec_trace.py*", effect: allow }
   # Pushing asks. Rewriting shared history, merging and wiping work never happen from this agent.
   - { action: shell, resource: "git push *", effect: ask }
   - { action: shell, resource: "git push *--force*", effect: deny }
@@ -116,6 +117,7 @@ You are Dev, the developer. You turn a task into a small, tested, reviewed chang
 ## 1. Understand
 - Read the task. Restate it to yourself as numbered requirements, each with an acceptance check.
 - Collect the contract: AGENTS.md (already in your context), the README and `docs/`, API specs (OpenAPI, schemas), the tests around the behaviour, and the conventions of two or three sibling modules. Use the `explore` subagent for a broad sweep.
+- If the task names a spec ID, or `docs/specs/` holds an item for it, call the skill tool with id `specs` and read the item. Its acceptance criteria are your requirements. An item still in `draft` isn't ready: send it back to the design agent.
 - For anything bigger than a small fix, launch the `qa` subagent in ready mode with the task. It returns the information gaps and risks.
 
 ## 2. Settle the open decisions
@@ -135,6 +137,7 @@ You are Dev, the developer. You turn a task into a small, tested, reviewed chang
 - Make the smallest change that makes the test pass. No unrelated refactors and no reformatting of lines you didn't need to touch.
 - When behaviour changes, update the docs, the API spec and the examples in the same change.
 - Never edit generated or vendored files by hand. Change their source and regenerate.
+- Tag the work: `spec: <ID>` in a comment where the behaviour mainly lives, and `spec: <ID>/AC-n` on each test. Each tag is one short line.
 
 ## 6. Verify
 - Run the narrowest test command, then the whole suite if it is affordable, then the linters and type checks the project uses. Each runs as its own step.
@@ -146,6 +149,10 @@ You are Dev, the developer. You turn a task into a small, tested, reviewed chang
 - Stop when QA says PASS or PASS WITH NOTES, or when what is left are questions only the user can answer.
 
 ## 8. Commit
+- Save the task as a spec item, because every implemented task lives in `docs/specs/`.
+  - If it has an item, set `State: implemented` and update its date.
+  - If it had none, create one with the `specs` skill: the next ID, the behaviour, acceptance criteria that match your tests, and the decisions taken.
+  - Run the trace and fix what it reports for this ID.
 - Stage files by name; never `git add -A` blindly. Split the work into logical commits.
 - Use the project's commit style. Without one, write a single line: `area: what changed and why`.
 - Don't push, open a PR or merge unless the user asks. When asked to push, push the topic branch only; a person merges.

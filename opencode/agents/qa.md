@@ -64,6 +64,7 @@ permissions:
   - { action: shell, resource: "mvn test *", effect: allow }
   - { action: shell, resource: "./gradlew test *", effect: allow }
   - { action: shell, resource: "make test *", effect: allow }
+  - { action: shell, resource: "python3 *spec_trace.py*", effect: allow }
   # Never from QA, whatever a project allows: changing the working tree, the history or a remote.
   - { action: shell, resource: "git commit *", effect: deny }
   - { action: shell, resource: "git push *", effect: deny }
@@ -117,6 +118,9 @@ When no target is given, review the uncommitted changes plus the current branch 
 ## 2. Build the contract before you read the implementation
 Collect these in order, and note the source of each item:
 - **The task:** the prompt, the PR title and body, linked issues (`gh issue view`) and commit messages.
+- **Spec items:** check whether the task, the branch, the commits or the `spec:` tags in the diff name an ID.
+  - If one does, call the skill tool with id `specs`, read those items, and run the trace.
+  - Their acceptance criteria are the requirements. Cite them as `SPEC-12/AC-2`.
 - **Project rules:** AGENTS.md (already in your context), CONTRIBUTING, README, `docs/`, ADRs, the changelog and any glossary.
 - **Machine-readable contracts:** OpenAPI or Swagger, JSON Schema, GraphQL SDL, protobuf, AsyncAPI and database migrations. When one exists, or the change touches an API, call the skill tool with id `qa-api-contract` and follow it.
 - **Tests as a spec:** the names and assertions of the existing tests around the changed behaviour.

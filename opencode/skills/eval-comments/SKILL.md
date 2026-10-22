@@ -33,3 +33,4 @@ Read the comment lines the range added or changed (`git diff <base>..HEAD`):
   - **move** it to the commit message or an ADR.
 - Contradicting comments are their own question, because they can mean the code is wrong rather than the comment.
 - Never flag a comment that carries a why, even a long one, unless it contradicts the code.
+- Never flag a `spec: <ID>` tag. It is a link to a spec item, not a comment.
