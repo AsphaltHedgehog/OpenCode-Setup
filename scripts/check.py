@@ -176,8 +176,8 @@ def run_checks(project):
         if agent:
             check(bool(agent.get("system") and agent.get("description")), f"agent {f.stem} has a prompt and a description")
 
-    # Outcomes worked out by hand from agents/qa.md and opencode.jsonc.
-    rules = {name: agents.get(name, {}).get("permissions", []) for name in ("qa", "build")}
+    # Outcomes worked out by hand from the agent files and opencode.jsonc.
+    rules = {name: agent.get("permissions", []) for name, agent in agents.items()}
     for name, action, resource, want in [
         ("qa", "chrome-devtools_take_screenshot", "*", "allow"),
         ("build", "chrome-devtools_take_screenshot", "*", "deny"),
@@ -195,8 +195,23 @@ def run_checks(project):
         ("qa", "shell", "curl http://localhost:3000/orders", "ask"),
         ("qa", "subagent", "explore", "allow"),
         ("qa", "subagent", "general", "deny"),
+        ("dev", "edit", "src/app.py", "allow"),
+        ("dev", "question", "*", "allow"),
+        ("dev", "shell", "git commit -m 'orders: cap limit at 100'", "allow"),
+        ("dev", "shell", "git switch -c orders/limit", "allow"),
+        ("dev", "shell", "npm run test:unit", "allow"),
+        ("dev", "shell", "npm run deploy", "ask"),
+        ("dev", "shell", "npm install left-pad", "ask"),
+        ("dev", "shell", "git push -u origin orders/limit", "ask"),
+        ("dev", "shell", "git push origin main", "deny"),
+        ("dev", "shell", "git push --force-with-lease origin orders/limit", "deny"),
+        ("dev", "shell", "git reset --hard HEAD~1", "deny"),
+        ("dev", "shell", "gh pr merge 7", "deny"),
+        ("dev", "subagent", "qa", "allow"),
+        ("dev", "subagent", "dev", "deny"),
+        ("dev", "chrome-devtools_take_screenshot", "*", "deny"),
     ]:
-        got = effect(rules[name], action, resource)
+        got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
 
     listed = poll(lambda: api(project, "command.list")["data"], lambda c: {f.stem for f in command_files} <= {x["name"] for x in c})
