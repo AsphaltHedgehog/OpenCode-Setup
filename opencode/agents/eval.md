@@ -44,6 +44,7 @@ permissions:
   - { action: shell, resource: "cloc *", effect: allow }
   - { action: shell, resource: "scc *", effect: allow }
   - { action: shell, resource: "tokei *", effect: allow }
+  - { action: shell, resource: "python3 *spec_trace.py*", effect: allow }
   # Never from this agent: changing the tree, the history or a remote.
   - { action: shell, resource: "git commit *", effect: deny }
   - { action: shell, resource: "git push *", effect: deny }
@@ -104,7 +105,12 @@ Run the three sweeps below. Launch the `explore` subagent for broad searches, se
 - review threads on the range's pull requests that were never answered (`gh pr list --state merged`, `gh pr view <n> --comments`);
 - issues that commit messages say they close but that are still open;
 - behaviour that changed without its docs, spec or changelog changing;
-- new configuration keys or flags that nothing documents.
+- new configuration keys or flags that nothing documents;
+- what the spec trace reports (call the skill tool with id `specs` and run its trace):
+  - items with no code;
+  - criteria with no tests;
+  - tags pointing to deprecated items;
+  - items changed after their code.
 
 **Architecture.** Call the skill tool with id `eval-architecture` and work through it against the range.
 
