@@ -221,6 +221,20 @@ def run_checks(project):
         ("eval", "shell", "git commit -m 'docs: evaluation'", "deny"),
         ("eval", "shell", "git tag -a sprint-12", "deny"),
         ("eval", "shell", "npm install left-pad", "ask"),
+        ("deps", "edit", "package.json", "deny"),
+        ("deps", "shell", "npm outdated --json", "allow"),
+        ("deps", "shell", "npm audit --json", "allow"),
+        ("deps", "shell", "npm view express time --json", "allow"),
+        ("deps", "shell", "pip3 index versions requests", "allow"),
+        ("deps", "shell", "npm audit fix", "deny"),
+        ("deps", "shell", "npm install express@5", "deny"),
+        ("deps", "shell", "npm i express@5", "deny"),
+        ("deps", "shell", "pip3 install -U requests", "deny"),
+        ("deps", "shell", "go get -u ./...", "deny"),
+        ("deps", "shell", "brew install osv-scanner", "deny"),
+        ("deps", "shell", "curl -s https://registry.npmjs.org/express", "ask"),
+        ("deps", "webfetch", "https://github.com/expressjs/express/releases", "allow"),
+        ("deps", "question", "*", "deny"),
     ]:
         got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
