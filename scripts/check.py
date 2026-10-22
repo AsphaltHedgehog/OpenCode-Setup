@@ -151,6 +151,7 @@ def main():
     finally:
         disconnect_all(project)
 
+    run_skill_script_tests()
     if PRIVATE.is_dir():
         run_private_checks()
 
@@ -235,6 +236,19 @@ def run_checks(project):
         ("deps", "shell", "curl -s https://registry.npmjs.org/express", "ask"),
         ("deps", "webfetch", "https://github.com/expressjs/express/releases", "allow"),
         ("deps", "question", "*", "deny"),
+        ("design", "edit", "docs/specs/orders-limit-SPEC-12.md", "allow"),
+        ("design", "edit", "docs/adr/0007-refunds.md", "allow"),
+        ("design", "edit", "api/openapi.yaml", "allow"),
+        ("design", "edit", "api/orders.py", "deny"),
+        ("design", "edit", "tests/test_api.py", "deny"),
+        ("design", "question", "*", "allow"),
+        ("design", "subagent", "explore", "allow"),
+        ("design", "subagent", "dev", "deny"),
+        ("design", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py .", "allow"),
+        ("design", "shell", "git commit -m 'docs: SPEC-12'", "deny"),
+        ("dev", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py . --strict", "allow"),
+        ("qa", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py .", "allow"),
+        ("eval", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py . --json", "allow"),
     ]:
         got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
@@ -275,6 +289,14 @@ def run_checks(project):
         state = status.get(name, {"status": "missing"})
         want = "disabled" if server.get("disabled") else "connected"
         check(state.get("status") == want, f"mcp {name} is {want}" + ("" if state.get("status") == want else f" (got {json.dumps(state)})"))
+
+
+def run_skill_script_tests():
+    """Scripts that ship inside a skill carry their own tests; run each test file."""
+    for test in sorted(CFG.glob("skills/*/scripts/test_*.py")):
+        run = subprocess.run([sys.executable, str(test)], capture_output=True, text=True)
+        summary = (run.stderr.strip().splitlines() or ["no output"])[-1]
+        check(run.returncode == 0, f"{test.relative_to(REPO)} passes ({summary})")
 
 
 def run_private_checks():
