@@ -97,6 +97,20 @@ class Trace(unittest.TestCase):
                                          (1_700_086_400, ["docs/specs/orders-limit-SPEC-12.md"])])
         self.assertEqual(trace(root)["problems"], ["SPEC-12: the spec changed after its code; check the code still matches"])
 
+    def test_marking_implemented_after_the_code_is_not_drift(self):
+        # dev commits the code, then flips the item to implemented: only State and Updated change.
+        approved = SPEC_12.replace("State: implemented", "State: approved").replace("Updated: 2026-10-22", "Updated: 2026-10-21")
+        root = repo_with({
+            "api.py": "# spec: SPEC-12\n",
+            "tests/test_api.py": "# spec: SPEC-12/AC-1\n# spec: SPEC-12/AC-2\n",
+            "docs/specs/orders-limit-SPEC-12.md": approved,
+        })
+        (root / "docs/specs/orders-limit-SPEC-12.md").write_text(SPEC_12)
+        stamp = "@1800000000 +0000"
+        env = {**os.environ, "GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp}
+        subprocess.run(["git", "-C", str(root), "commit", "-qam", "mark implemented"], check=True, env=env)
+        self.assertEqual(trace(root)["problems"], [])
+
     def test_strict_exit_code(self):
         root = repo_with({"docs/specs/refunds-SPEC-13.md": "# SPEC-13 Refunds\n\nState: approved\n"})
         run = lambda *a: subprocess.run([sys.executable, str(SCRIPT), str(root), *a], capture_output=True).returncode

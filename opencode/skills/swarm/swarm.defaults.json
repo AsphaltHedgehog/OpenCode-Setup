@@ -1,0 +1,5 @@
+{
+  "max": { "design": 1, "dev": 3, "qa": 2, "eval": 1 },
+  "qa_rounds": 2,
+  "worktrees": "../{repo}.worktrees"
+}

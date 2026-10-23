@@ -60,14 +60,17 @@ The launcher names no projects. It finds every git repository or worktree direct
 | `opencode/agents/eval.md` | The evaluation agent for the end of a sprint |
 | `opencode/agents/deps.md` | The dependency scout |
 | `opencode/agents/design.md` | The software designer and keeper of the specs |
+| `opencode/agents/lead.md` | The sprint lead that runs the team |
 | `opencode/commands/qa.md`, `qa-ready.md` | The `/qa` and `/qa-ready` commands |
 | `opencode/commands/dev.md` | The `/dev` command |
 | `opencode/commands/eval.md` | The `/eval` command |
 | `opencode/commands/deps.md` | The `/deps` command |
 | `opencode/commands/design.md` | The `/design` command |
+| `opencode/commands/sprint.md` | The `/sprint` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
 | `opencode/skills/eval-*/SKILL.md` | The evaluation agent's architecture and comments checklists |
 | `opencode/skills/specs/` | The spec item format, and the trace script that links specs to code by ID |
+| `opencode/skills/swarm/` | The sprint swarm's default limits, and the script that merges a project's overrides |
 | `private/` | Your own layer for one workspace. Git ignores it, so it never reaches GitHub |
 | `install.sh` | Links the global layer into `~/.config/opencode` and `private/` into its workspace |
 | `launch/oc.command` | Opens opencode in a project with the harness |
@@ -198,7 +201,7 @@ Eval closes a sprint or a feature set. It finds what the sprint left behind, the
 - **Grilling:** it asks you one question at a time, each with its recommended answer: fix now, ticket, accept with a reason, or write an ADR. It looks facts up itself and asks you only for decisions.
 - **The record:** it writes `docs/evaluations/<date>.md` as it goes, and that is the only file it may change. The record ends with a ready-to-run `/dev` task for the fix-now items, and the agent leaves it uncommitted for you to review.
 
-Run it with `/eval` as the main agent of a session, because a subagent can't hold an interview. In a non-interactive run it writes its proposed decisions and stops. It doesn't judge how up to date your dependencies are; it only notes the ones the sprint added.
+Run it with `/eval` as the main agent of a session, so it can ask you directly. When the sprint lead runs it as a subagent, it returns its questions instead, and the lead asks them for it. In a non-interactive run it writes its proposed decisions and stops. It doesn't judge how up to date your dependencies are; it only notes the ones the sprint added.
 
 ## The deps agent
 
@@ -210,6 +213,35 @@ Deps finds which dependencies should move, how risky each move is, and what in y
 - **Batches:** security now, a safe patch-and-minor batch, one batch per major, and a hold list, each with a ready-made `/dev` task.
 
 Run `/deps` (or `/deps npm`, `/deps app/`) as a background subagent. It runs on its own schedule, for example weekly or before a release, so it is separate from the end-of-sprint evaluation.
+
+## Sprints: the swarm
+
+`/sprint <goal>` hands a sprint to the **lead**, which runs the agents as a team.
+1. **Design.** Design writes or finishes a spec item for each task. The lead relays its questions to you one at a time.
+2. **Build.** Dev agents build the approved items in parallel. Each works in its own git worktree and branch. Tasks that would change the same files run one after another.
+3. **Review.** QA reviews each change. A FAIL goes back to its dev for another round.
+4. **Close.** Eval reviews the sprint, and the lead relays its questions to you.
+
+At the end, the lead checks every branch with git and the spec trace before reporting. It asks you before pushing or opening PRs, and you merge.
+
+The lead runs every agent itself, because subagents can't start their own. That is also why it can relay questions: design and eval return theirs, and the lead resumes them with your answers.
+
+### Limits, not quotas
+
+The swarm settings are **upper limits**. The lead starts the fewest agents the work needs, never more than a role's limit, and skips a role set to `0`. A one-task sprint uses one dev and one reviewer.
+
+```json
+{
+  "max": { "design": 1, "dev": 3, "qa": 2, "eval": 1 },
+  "qa_rounds": 2,
+  "worktrees": "../{repo}.worktrees"
+}
+```
+
+- **Defaults:** they live in `opencode/skills/swarm/swarm.defaults.json`.
+- **Overrides:** a machine overrides them in `~/.config/opencode/swarm.json`, and a workspace or a project in its own `.opencode/swarm.json`. The nearest file wins, key by key.
+- **The result for a project:** `python3 opencode/skills/swarm/scripts/swarm_limits.py <project>` prints it, along with the files it read.
+- **Worktrees:** they go beside the repository by default, so `dev`, `qa` and `lead` may work in `*.worktrees/*` even where a project asks before reaching outside its folder.
 
 ## Check it
 
@@ -228,6 +260,8 @@ Each check project is `~/.cache/halfling-harness/check/<layer>-<hash of its file
 - **A single v1 key disables the agent's permissions.** If an agent's frontmatter contains any v1 key (`temperature`, `tools`, `permission`, `prompt`, `maxSteps` and so on), opencode reads the whole file as a v1 agent, and the v2 `permissions` list is silently dropped. A read-only agent then becomes able to edit files and push. `scripts/check.py` fails on this.
 - **Edits through a symlink are missed.** The background service keeps a folder's agents, commands and skills from the first time it loads that folder, and it doesn't notice edits made through a symlinked `.opencode` (which is how `install.sh` links this repo). After you change or pull this repo, run `opencode reload`. Be aware that it rebuilds every loaded folder and cancels any pending permission prompts.
 - **Deleted folders break the reload.** If you delete a folder opencode has loaded, `opencode reload` fails with `DirectoryNotFoundError` until the service restarts (`opencode service restart`).
+- **Headless runs don't execute slash commands.** `opencode run "/qa …"` sends the text to the default `build` agent. `build` may then read the command and agent files and imitate them, while keeping its own allow-everything permissions. For a headless run, pick the agent explicitly: `opencode run --agent qa "…"`. In the TUI, slash commands work as expected.
+- **Background agents wait on prompts.** A permission prompt in a background session waits until a client answers it. Once `opencode run` has exited, or with no TUI attached, it waits forever. Run sprints in the TUI, where you see and answer the prompts. Or answer one with `opencode api POST /api/session/<session>/permission/<request>/reply -d '{"decision":"reject"}'`; `GET /api/session/<session>/permission` lists the pending ones.
 - **Agents load a moment late.** In a folder opencode hasn't seen before, the agents arrive a moment after the first request, so `opencode debug agents` can miss them. Ask again.
 - **Piped output can be cut short.** `opencode api` can truncate a large answer when its output goes into a pipe. Write it to a file.
 - **`mcp.disconnect` fails in 2.0.25.** The `opencode api mcp.disconnect` operation errors, while `opencode api POST /api/experimental/mcp/<server>/disconnect` works.

@@ -9,6 +9,7 @@ permissions:
   - { action: question, resource: "*", effect: deny }
   - { action: subagent, resource: "*", effect: deny }
   - { action: subagent, resource: "explore", effect: allow }
+  - { action: external_directory, resource: "*.worktrees/*", effect: allow }
   - { action: "chrome-devtools_*", resource: "*", effect: allow }
   # Shell asks for anything not listed. Inspection commands and test runners run without a prompt.
   - { action: shell, resource: "*", effect: ask }
@@ -104,7 +105,8 @@ The prompt can give you any of these:
 - a task or ticket text;
 - a target: uncommitted changes (the default), a branch, a commit range, a PR number or URL, or a path;
 - the URL of a running app;
-- "ready mode", meaning a task and no code yet.
+- "ready mode", meaning a task and no code yet;
+- a branch and its worktree, from the lead. Diff the branch against its base from the repository you run in, and run tests with the worktree as the shell working directory.
 
 When no target is given, review the uncommitted changes plus the current branch against its base.
 
