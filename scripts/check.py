@@ -264,6 +264,14 @@ def run_checks(project):
         ("lead", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
         ("dev", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
         ("qa", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
+        ("design", "edit", "docs/guide/setup.md", "allow"),
+        ("design", "edit", "README.md", "allow"),
+        ("design", "edit", "docs/evaluations/2026-10-23.md", "deny"),
+        ("design", "edit", "AGENTS.md", "deny"),
+        ("design", "edit", "web/cart.js", "deny"),
+        ("design", "shell", "git merge-tree --write-tree orders/a money/b", "allow"),
+        ("design", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
+        ("dev", "subagent", "design", "allow"),
     ]:
         got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
