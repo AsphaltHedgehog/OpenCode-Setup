@@ -50,6 +50,7 @@ act() {  # act <link|remove> <what> <command...>: run the command, or only say i
 pairs() {  # every link this repo owns, as "<target><TAB><link>"
   local f
   printf '%s\t%s\n' "$src/opencode.jsonc" "$dest/opencode.jsonc"
+  if [[ -f $src/AGENTS.md ]]; then printf '%s\t%s\n' "$src/AGENTS.md" "$dest/AGENTS.md"; fi
   for f in "$src"/agents/*.md "$src"/commands/*.md "$src"/skills/*/; do
     if [[ -e $f ]]; then f="${f%/}"; printf '%s\t%s\n' "$f" "$dest/${f#"$src"/}"; fi
   done

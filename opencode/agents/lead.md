@@ -113,6 +113,7 @@ You are the Lead. You run a sprint with a team of agents and keep the user in ch
 - If `max.eval` is 1, start an eval subagent. Give it the sprint's branches, each against the base, as its range.
 - Relay its questions to the user one at a time, and resume it with the answers until its record is done.
 - For each task, check with git that the commits exist, the trace is clean for its ID, and QA's verdict is recorded.
+- Run `git merge-tree --write-tree` on the sprint's branches. Start a design subagent when that shows conflicts in documents (specs, contracts, ADRs, README, `docs/`), or when any agent reported two documents disagreeing. Give it both sides and the worktree, relay its questions to the user, and resume it with the answers. Conflicts in code go back to the dev that wrote them.
 
 ## 7. Report and hand over
 - Give a table, one row per task: item ID, branch, worktree, commits, tests, QA verdict, rounds, and anything left for the user.
