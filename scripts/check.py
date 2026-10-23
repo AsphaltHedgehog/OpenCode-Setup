@@ -249,6 +249,21 @@ def run_checks(project):
         ("dev", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py . --strict", "allow"),
         ("qa", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py .", "allow"),
         ("eval", "shell", "python3 /h/opencode/skills/specs/scripts/spec_trace.py . --json", "allow"),
+        ("lead", "edit", "api/orders.py", "deny"),
+        ("lead", "question", "*", "allow"),
+        ("lead", "subagent", "dev", "allow"),
+        ("lead", "subagent", "eval", "allow"),
+        ("lead", "subagent", "general", "deny"),
+        ("lead", "shell", "git worktree add /w/shop.worktrees/refunds -b orders/refunds", "allow"),
+        ("lead", "shell", "python3 /h/opencode/skills/swarm/scripts/swarm_limits.py .", "allow"),
+        ("lead", "shell", "git push -u origin orders/refunds", "ask"),
+        ("lead", "shell", "gh pr create --fill", "ask"),
+        ("lead", "shell", "git push --force origin orders/refunds", "deny"),
+        ("lead", "shell", "git branch -D orders/refunds", "deny"),
+        ("lead", "shell", "gh pr merge 9", "deny"),
+        ("lead", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
+        ("dev", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
+        ("qa", "external_directory", "/w/shop.worktrees/refunds/*", "allow"),
     ]:
         got = effect(rules.get(name, []), action, resource)
         check(got == want, f"{name}: {action} {resource!r} is {want}" + ("" if got == want else f" (got {got})"))
