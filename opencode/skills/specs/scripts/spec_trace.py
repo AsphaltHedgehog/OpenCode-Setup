@@ -21,6 +21,7 @@ STATE = re.compile(r"^State:\s*(draft|approved|implemented|deprecated)\b", re.I 
 CRITERION = re.compile(r"^\s*[-*]\s*\**(AC-\d+)\b", re.M)
 TAG = re.compile(rf"spec:\s*({ID})(?:/(AC-\d+))?")
 FILE_ID = re.compile(rf"-({ID})\.md$")
+BOOKKEEPING = re.compile(r"^(State|Created|Updated):", re.I)
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)/|(^|/)test_[^/]*$|_test\.[a-z]+$|\.(test|spec)\.[a-z]+$")
 
 
@@ -33,6 +34,21 @@ def last_change(repo, path):
     """Unix time of the last commit that touched path, or None if it was never committed."""
     out = git(repo, "log", "-1", "--format=%ct", "--", path).strip()
     return int(out) if out else None
+
+
+def changed_after(repo, path, since):
+    """True if a commit after `since` (unix time) changed the item beyond its State, Created and
+    Updated lines. Marking an item implemented after its code is bookkeeping, not drift."""
+    for line in git(repo, "log", "--format=%H %ct", "--", path).splitlines():
+        sha, when = line.split()
+        if int(when) <= since:
+            break
+        for d in git(repo, "show", "--format=", "-U0", sha, "--", path).splitlines():
+            if d.startswith(("+++", "---")) or not d.startswith(("+", "-")):
+                continue
+            if not BOOKKEEPING.match(d[1:].strip()):
+                return True
+    return False
 
 
 def read_specs(repo):
@@ -105,10 +121,9 @@ def check_specs(repo, specs):
                 problems.append(f"{sid}: implemented but no test tags {', '.join(untested)}")
         if s["state"] == "draft" and s["code"]:
             problems.append(f"{sid}: still draft, but code already implements it")
-        spec_time = last_change(repo, s["file"])
         code_files = {w.rsplit(":", 1)[0] for w in s["code"]}
         code_times = [t for t in (last_change(repo, f) for f in code_files) if t]
-        if spec_time and code_times and spec_time > max(code_times):
+        if code_times and changed_after(repo, s["file"], max(code_times)):
             problems.append(f"{sid}: the spec changed after its code; check the code still matches")
     return problems
 
