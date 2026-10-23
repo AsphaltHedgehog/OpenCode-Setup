@@ -55,6 +55,7 @@ The launcher names no projects. It finds every git repository or worktree direct
 | Path | What it is |
 |---|---|
 | `opencode/opencode.jsonc` | The MCP servers, plus the one global permission rule |
+| `opencode/AGENTS.md` | Rules for every session, linked to `~/.config/opencode/AGENTS.md`: document conflicts go to the design agent |
 | `opencode/agents/qa.md` | The QA agent |
 | `opencode/agents/dev.md` | The developer agent |
 | `opencode/agents/eval.md` | The evaluation agent for the end of a sprint |
@@ -66,6 +67,7 @@ The launcher names no projects. It finds every git repository or worktree direct
 | `opencode/commands/eval.md` | The `/eval` command |
 | `opencode/commands/deps.md` | The `/deps` command |
 | `opencode/commands/design.md` | The `/design` command |
+| `opencode/commands/resolve.md` | The `/resolve` command for document conflicts |
 | `opencode/commands/sprint.md` | The `/sprint` command |
 | `opencode/skills/qa-*/SKILL.md` | Checklists that the QA agent loads when a step needs them |
 | `opencode/skills/eval-*/SKILL.md` | The evaluation agent's architecture and comments checklists |
@@ -187,6 +189,22 @@ It reports:
 - items changed after their code.
 
 `--strict` makes it usable in CI. `scripts/check.py` runs its tests.
+
+### Document conflicts
+
+The design agent is also the one that resolves conflicts between documents. The main session doesn't resolve them, and neither do dev, QA or the lead. That covers:
+- two spec items;
+- a spec and its API contract;
+- the README or `docs/` and a spec;
+- an ADR and a later decision;
+- merge conflicts in any of these files.
+
+The global `AGENTS.md` tells every session to hand such a conflict to the `design` subagent, and to relay its questions to you. Dev hands conflicts to design, QA and eval report them as design's work, and the lead runs design when sprint branches conflict in documents. You can also start it yourself with `/resolve <what disagrees>`.
+- **Rules first:** where a rule settles the conflict, design applies it and says which. The contract file owns the contract and the spec owns behaviour, an accepted ADR is replaced only by a later one, and the README and `docs/` follow the specs and contracts.
+- **Otherwise, a decision:** where no rule settles it, design asks you one question at a time.
+- **The fix:** design corrects every document that repeats the losing side and records the outcome in the spec's Decisions. Code that disagrees becomes a task for dev.
+
+To do this, design may also edit `docs/` and READMEs, but never `docs/evaluations/` or any AGENTS.md.
 
 Run design with `/design <task>`. When it runs as a subagent it can't ask you anything, so it returns its open questions with recommendations and keeps the item as a draft.
 
