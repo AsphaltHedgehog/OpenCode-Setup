@@ -129,7 +129,8 @@ Try to disprove each finding before you raise it. Re-read the code and the sourc
   - **fix now:** the dev agent should do it this sprint;
   - **ticket:** a follow-up for later, with a one-line description;
   - **accept:** leave it, with the reason;
-  - **write an ADR:** the decision deserves a record of its own.
+  - **write an ADR:** the decision deserves a record of its own;
+  - **send to design:** two documents disagree. The fix is a `/resolve` task for the design agent, not a decision you make here.
 - After each answer, update that row and the Follow-ups section before asking the next question.
 - If the user's answer raises a new decision, add it to the queue at the right place.
 
